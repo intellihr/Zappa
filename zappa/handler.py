@@ -8,6 +8,7 @@ import importlib
 import inspect
 import json
 import logging
+import logging.config
 import os
 import sys
 import traceback
@@ -20,11 +21,11 @@ from werkzeug.wrappers import Response
 # so handle both scenarios.
 try:
     from zappa.middleware import ZappaWSGIMiddleware
-    from zappa.wsgi import create_wsgi_request, common_log
+    from zappa.wsgi import create_wsgi_request
     from zappa.utilities import parse_s3_url
 except ImportError as e:  # pragma: no cover
     from .middleware import ZappaWSGIMiddleware
-    from .wsgi import create_wsgi_request, common_log
+    from .wsgi import create_wsgi_request
     from .utilities import parse_s3_url
 
 
@@ -32,6 +33,10 @@ except ImportError as e:  # pragma: no cover
 logging.basicConfig()
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
+
+# [intellihr] allow custom logging config
+if os.environ.get('LOG_CONFIG_FILE'):
+    logging.config.fileConfig(os.path.join(os.getcwd(), os.environ.get('LOG_CONFIG_FILE')))
 
 
 class LambdaHandler(object):
@@ -521,7 +526,6 @@ class LambdaHandler(object):
                 delta = time_end - time_start
                 response_time_ms = delta.total_seconds() * 1000
                 response.content = response.data
-                common_log(environ, response, response_time=response_time_ms)
 
                 return zappa_returndict
         except Exception as e:  # pragma: no cover
