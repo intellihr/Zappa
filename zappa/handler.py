@@ -16,6 +16,7 @@ import tarfile
 
 from builtins import str
 from werkzeug.wrappers import Response
+from collections import defaultdict
 
 # This file may be copied into a project's root,
 # so handle both scenarios.
@@ -100,6 +101,9 @@ class LambdaHandler(object):
             # https://github.com/Miserlou/Zappa/issues/604
             for key in self.settings.ENVIRONMENT_VARIABLES.keys():
                 os.environ[str(key)] = self.settings.ENVIRONMENT_VARIABLES[key]
+
+            # [intellihr] set env variables from aws param store
+            self.load_param_store_envs()
 
             # Pulling from S3 if given a zip path
             project_archive_path = getattr(self.settings, 'ARCHIVE_PATH', None)
@@ -225,6 +229,29 @@ class LambdaHandler(object):
             except Exception:
                 if self.settings.LOG_LEVEL == "DEBUG":
                     print("Environment variable keys must be non-unicode!")
+
+    def load_param_store_envs(self):
+        prefix = os.environ.get('SSM_ENV_PREFIX', 'ssm://')
+
+        envs = defaultdict(list)
+        for key, value in os.environ.items():
+            if not value.startswith(prefix):
+                continue
+
+            envs[value.replace(prefix, '', 1)].append(key)
+
+        if envs:
+            param_names = [str(key) for key in envs.keys()]
+            results = boto3.client('ssm').get_parameters(Names=param_names, WithDecryption=True)
+
+            if results['InvalidParameters']:
+                logger.warning('unresolvable ssm params: %s' % results['InvalidParameters'])
+
+            for param in results['Parameters']:
+                env_names = envs.get(param['Name'])
+                for env_name in env_names:
+                    os.environ[env_name] = param['Value']
+                    logger.debug('set %s from param store' % env_name)
 
     @staticmethod
     def import_module_and_get_function(whole_function):
