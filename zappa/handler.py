@@ -63,7 +63,7 @@ class LambdaHandler(object):
             if sys.version_info[0] < 3:
                 LambdaHandler.__instance = object.__new__(cls, settings_name, session)
             else:
-                print("Instancing..")
+                logger.info("Instancing..")
                 LambdaHandler.__instance = object.__new__(cls)
         return LambdaHandler.__instance
 
@@ -123,9 +123,9 @@ class LambdaHandler(object):
                         try:
                             cdll.LoadLibrary(os.path.join(os.getcwd(), library))
                         except OSError:
-                            print ("Failed to find library...right filename?")
+                            logger.error("Failed to find library...right filename?")
                 except ImportError:
-                    print ("Failed to import cytpes library")
+                    logger.error("Failed to import cytpes library")
 
             # This is a non-WSGI application
             # https://github.com/Miserlou/Zappa/pull/748
@@ -199,26 +199,26 @@ class LambdaHandler(object):
             remote_env_object = s3.Object(remote_bucket, remote_file).get()
         except Exception as e:  # pragma: no cover
             # catch everything aws might decide to raise
-            print('Could not load remote settings file.', e)
+            logger.error('Could not load remote settings file: %s', e)
             return
 
         try:
             content = remote_env_object['Body'].read()
         except Exception as e:  # pragma: no cover
             # catch everything aws might decide to raise
-            print('Exception while reading remote settings file.', e)
+            logger.error('Exception while reading remote settings file: %s', e)
             return
 
         try:
             settings_dict = json.loads(content)
         except (ValueError, TypeError):  # pragma: no cover
-            print('Failed to parse remote settings!')
+            logger.error('Failed to parse remote settings!')
             return
 
         # add each key-value to environment - overwrites existing keys!
         for key, value in settings_dict.items():
             if self.settings.LOG_LEVEL == "DEBUG":
-                print('Adding {} -> {} to environment'.format(
+                logger.debug('Adding {} -> {} to environment'.format(
                     key,
                     value
                 ))
@@ -228,7 +228,7 @@ class LambdaHandler(object):
                 os.environ[str(key)] = value
             except Exception:
                 if self.settings.LOG_LEVEL == "DEBUG":
-                    print("Environment variable keys must be non-unicode!")
+                    logger.error("Environment variable keys must be non-unicode!")
 
     def load_param_store_envs(self):
         prefix = os.environ.get('SSM_ENV_PREFIX', 'ssm://')
@@ -287,7 +287,7 @@ class LambdaHandler(object):
                 exception_processed = handler_function(exception, event, context)
             except Exception as cex:
                 logger.error(msg='Failed to process exception via custom handler.')
-                print(cex)
+                logger.error(cex)
         return exception_processed
 
     @staticmethod
@@ -351,7 +351,7 @@ class LambdaHandler(object):
         """
         Get the associated function to execute for a cognito trigger
         """
-        print("get_function_for_cognito_trigger", self.settings.COGNITO_TRIGGER_MAPPING, trigger, self.settings.COGNITO_TRIGGER_MAPPING.get(trigger))
+        logger.info("get_function_for_cognito_trigger %s %s %s", self.settings.COGNITO_TRIGGER_MAPPING, trigger, self.settings.COGNITO_TRIGGER_MAPPING.get(trigger))
         return self.settings.COGNITO_TRIGGER_MAPPING.get(trigger)
 
     def handler(self, event, context):
@@ -394,8 +394,10 @@ class LambdaHandler(object):
             whole_function = event['command']
             app_function = self.import_module_and_get_function(whole_function)
             result = self.run_function(app_function, event, context)
-            print("Result of %s:" % whole_function)
-            print(result)
+
+            if self.settings.LOG_LEVEL == "DEBUG":
+                logger.debug("Result of %s:" % whole_function, extra=dict(data=result))
+
             return result
 
         # This is a direct, raw python invocation.
@@ -558,7 +560,7 @@ class LambdaHandler(object):
         except Exception as e:  # pragma: no cover
 
             # Print statements are visible in the logs either way
-            print(e)
+            logger.error(e)
             exc_info = sys.exc_info()
             message = ('An uncaught exception happened while servicing this request. '
                        'You can investigate this with the `zappa tail` command.')
