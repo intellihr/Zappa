@@ -1066,7 +1066,7 @@ class Zappa(object):
 
         return resource_arn
 
-    def update_lambda_function(self, bucket, function_name, s3_key=None, publish=True, local_zip=None):
+    def update_lambda_function(self, bucket, function_name, s3_key=None, publish=True, local_zip=None, wait=True):
         """
         Given a bucket and key (or a local path) of a valid Lambda-zip, a function name and a handler, update that Lambda function's code.
         """
@@ -1083,6 +1083,11 @@ class Zappa(object):
             kwargs['S3Key'] = s3_key
 
         response = self.lambda_client.update_function_code(**kwargs)
+
+        if wait:
+            waiter = self.lambda_client.get_waiter("function_updated")
+            print(f"Waiting for lambda function [{function_name}] to be updated...")
+            waiter.wait(FunctionName=function_name)
 
         return response['FunctionArn']
 
