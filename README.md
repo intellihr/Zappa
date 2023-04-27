@@ -413,10 +413,10 @@ Currently, the easiest of these to use are the AWS Certificate Manager certifica
 
 Once configured as described below, all of these methods use the same command:
 
-    $ zappa certify 
+    $ zappa certify
 
 When deploying from a CI/CD system, you can use:
-    
+
     $ zappa certify --yes
 
 to skip the confirmation prompt.
@@ -544,7 +544,7 @@ For configuring Lex Bot's intent triggered events:
             }
         }
 	]
- 
+
 ```
 
 Events can also take keyword arguments:
@@ -573,11 +573,11 @@ You can find more [example event sources here](http://docs.aws.amazon.com/lambda
 
 Zappa also now offers the ability to seamlessly execute functions asynchronously in a completely separate AWS Lambda instance!
 
-For example, if you have a Flask API for ordering a pie, you can call your `bake` function seamlessly in a completely separate Lambda instance by using the `zappa.async.task` decorator like so:
+For example, if you have a Flask API for ordering a pie, you can call your `bake` function seamlessly in a completely separate Lambda instance by using the `zappa.asynchronous.task` decorator like so:
 
 ```python
 from flask import Flask
-from zappa.async import task
+from zappa.asynchronous import task
 app = Flask(__name__)
 
 @task
@@ -597,7 +597,7 @@ def order_pie():
 
 And that's it! Your API response will return immediately, while the `make_pie` function executes in a completely different Lambda instance.
 
-When calls to @task decorated functions or the zappa.async.run command occur outside of Lambda, such as your local dev environment,
+When calls to @task decorated functions or the zappa.asynchronous.run command occur outside of Lambda, such as your local dev environment,
 the functions will execute immediately and locally. The zappa async functionality only works
 when in the Lambda environment or when specifying [Remote Invocations](https://github.com/Miserlou/zappa#remote-invocations).
 
@@ -606,7 +606,7 @@ when in the Lambda environment or when specifying [Remote Invocations](https://g
 By default, this feature uses direct AWS Lambda invocation. You can instead use AWS Simple Notification Service as the task event source by using the `task_sns` decorator, like so:
 
 ```python
-from zappa.async import task_sns
+from zappa.asynchronous import task_sns
 @task_sns
 ```
 
@@ -629,10 +629,10 @@ Using SNS will also return a message ID in case you need to track your invocatio
 
 ### Direct Invocation
 
-You can also use this functionality without a decorator by passing your function to `zappa.async.run`, like so:
+You can also use this functionality without a decorator by passing your function to `zappa.asynchronous.run`, like so:
 
 ```python
-from zappa.async import run
+from zappa.asynchronous import run
 
 run(your_function, args, kwargs) # Using Lambda
 run(your_function, args, kwargs, service='sns') # Using SNS
@@ -656,7 +656,7 @@ def make_pie():
 
 ```
 If those task() parameters were not used, then EC2 would execute the function locally. These same
- `remote_aws_lambda_function_name` and `remote_aws_region` arguments can be used on the zappa.async.run() function as well.
+ `remote_aws_lambda_function_name` and `remote_aws_region` arguments can be used on the zappa.asynchronous.run() function as well.
 
 ### Restrictions
 
@@ -698,7 +698,7 @@ Async responses are assigned a `response_id`. This is returned as a property of 
 Example:
 
 ```python
-from zappa.async import task, get_async_response
+from zappa.asynchronous import task, get_async_response
 from flask import Flask, make_response, abort, url_for, redirect, request, jsonify
 from time import sleep
 

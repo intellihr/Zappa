@@ -9,8 +9,8 @@ try:
 except ImportError:
     from unittest.mock import patch
 
-from zappa.async import AsyncException, LambdaAsyncResponse, SnsAsyncResponse
-from zappa.async import import_and_get_task, \
+from zappa.asynchronous import AsyncException, LambdaAsyncResponse, SnsAsyncResponse
+from zappa.asynchronous import import_and_get_task, \
                         get_func_task_path
 
 
