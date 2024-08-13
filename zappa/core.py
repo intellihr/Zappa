@@ -359,10 +359,9 @@ class Zappa(object):
         """
         For a given package, returns a list of required packages. Recursive.
         """
-        import pip
         deps = []
         if not installed_distros:
-            installed_distros = pip.get_installed_distributions()
+            installed_distros = Zappa.get_installed_distributions()
         for package in installed_distros:
             if package.project_name.lower() == pkg_name.lower():
                 deps = [(package.project_name, package.version)]
@@ -744,6 +743,18 @@ class Zappa(object):
             tar.extract(member, path)
 
     @staticmethod
+    def get_installed_distributions():
+        """
+        Returns a list of installed distributions.
+        """
+        try:
+            import pip
+            return pip.get_installed_distributions
+        except (ImportError, AttributeError):  # pragma: no cover
+            import pkg_resources
+            return pkg_resources.working_set
+
+    @staticmethod
     def get_installed_packages(site_packages, site_packages_64):
         """
         Returns a dict of installed packages that Zappa cares about.
@@ -758,7 +769,7 @@ class Zappa(object):
         package_to_keep = [x.lower() for x in package_to_keep]
 
         installed_packages = {package.project_name.lower(): package.version for package in
-                              pip.get_installed_distributions()
+                              Zappa.get_installed_distributions()
                               if package.project_name.lower() in package_to_keep
                               or package.location in [site_packages, site_packages_64]}
 
@@ -1082,7 +1093,27 @@ class Zappa(object):
 
         response = self.lambda_client.update_function_code(**kwargs)
 
+        self.wait_until_lambda_function_is_updated(function_name)
+
         return response['FunctionArn']
+
+    def wait_until_lambda_function_is_active(self, function_name):
+        """
+        Wait until lambda State=Active
+        """
+        # https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/lambda.html#waiters
+        waiter = self.lambda_client.get_waiter("function_active")
+        print(f"Waiting for lambda function [{function_name}] to become active...")
+        waiter.wait(FunctionName=function_name)
+
+    def wait_until_lambda_function_is_updated(self, function_name):
+        """
+        Wait until lambda LastUpdateStatus=Successful
+        """
+        # https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/lambda.html#waiters
+        waiter = self.lambda_client.get_waiter("function_updated")
+        print(f"Waiting for lambda function [{function_name}] to be updated...")
+        waiter.wait(FunctionName=function_name)
 
     def update_lambda_configuration(    self,
                                         lambda_arn,
@@ -1110,6 +1141,8 @@ class Zappa(object):
             aws_kms_key_arn = ''
         if not aws_environment_variables:
             aws_environment_variables = {}
+
+        self.wait_until_lambda_function_is_updated(function_name)
 
         # Check if there are any remote aws lambda env vars so they don't get trashed.
         # https://github.com/Miserlou/Zappa/issues/987,  Related: https://github.com/Miserlou/Zappa/issues/765
@@ -1141,6 +1174,7 @@ class Zappa(object):
 
         if self.tags:
             self.lambda_client.tag_resource(Resource=resource_arn, Tags=self.tags)
+
 
         return resource_arn
 
@@ -1789,7 +1823,7 @@ class Zappa(object):
 
         # build a fresh template
         self.cf_template = troposphere.Template()
-        self.cf_template.add_description('Automatically generated with Zappa')
+        self.cf_template.set_description('Automatically generated with Zappa')
         self.cf_api_resources = []
         self.cf_parameters = {}
 

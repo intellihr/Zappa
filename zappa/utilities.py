@@ -367,7 +367,7 @@ def validate_name(name, maxlen=80):
 
 def contains_python_files_or_subdirs(folder):
     """
-    Checks (recursively) if the directory contains .py or .pyc files 
+    Checks (recursively) if the directory contains .py or .pyc files
     """
     for root, dirs, files in os.walk(folder):
         if [filename for filename in files if filename.endswith('.py') or filename.endswith('.pyc')]:
@@ -389,3 +389,24 @@ def conflicts_with_a_neighbouring_module(directory_path):
     neighbours = os.listdir(parent_dir_path)
     conflicting_neighbour_filename = current_dir_name+'.py'
     return conflicting_neighbour_filename in neighbours
+
+def merge_headers(event):
+    """
+    Merge the values of headers and multiValueHeaders into a single dict.
+    Opens up support for multivalue headers via API Gateway and ALB.
+    See: https://github.com/Miserlou/Zappa/pull/1756
+    """
+    headers = event.get("headers") or {}
+    multi_headers = (event.get("multiValueHeaders") or {}).copy()
+    for h in set(headers.keys()):
+        if h not in multi_headers:
+            multi_headers[h] = [headers[h]]
+    for h in multi_headers.keys():
+        multi_headers[h] = ", ".join(multi_headers[h])
+    return multi_headers
+
+def titlecase_keys(d):
+    """
+    Takes a dict with keys of type str and returns a new dict with all keys titlecased.
+    """
+    return {k.title(): v for k, v in d.items()}
